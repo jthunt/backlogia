@@ -28,7 +28,7 @@ def settings_page(
         get_setting, STEAM_ID, STEAM_API_KEY, IGDB_CLIENT_ID, IGDB_CLIENT_SECRET,
         ITCH_API_KEY, HUMBLE_SESSION_COOKIE, BATTLENET_SESSION_COOKIE, GOG_DB_PATH,
         EA_BEARER_TOKEN, IGDB_MATCH_THRESHOLD, LOCAL_GAMES_PATHS, XBOX_XSTS_TOKEN,
-        XBOX_GAMEPASS_MARKET, XBOX_GAMEPASS_PLAN
+        XBOX_GAMEPASS_MARKET, XBOX_GAMEPASS_PLAN, PSN_NPSSO
     )
     from ..sources.local import discover_local_game_paths
 
@@ -67,6 +67,8 @@ def settings_page(
         "xbox_xsts_token": get_setting(XBOX_XSTS_TOKEN, ""),
         "xbox_gamepass_market": get_setting(XBOX_GAMEPASS_MARKET, ""),
         "xbox_gamepass_plan": get_setting(XBOX_GAMEPASS_PLAN, ""),
+        "psn_connected": bool(get_setting(PSN_NPSSO, "")),
+        "psn_npsso": "",
     }
     success_flag = success == "1"
 
@@ -76,8 +78,9 @@ def settings_page(
     hidden_count = cursor.fetchone()[0]
 
     return templates.TemplateResponse(
-        "settings.html",
-        {
+        request=request,
+        name="settings.html",
+        context={
             "request": request,
             "settings": settings,
             "success": success_flag,
@@ -104,6 +107,7 @@ def save_settings(
     xbox_xsts_token: str = Form(default=""),
     xbox_gamepass_market: str = Form(default=""),
     xbox_gamepass_plan: str = Form(default=""),
+    psn_npsso: str = Form(default=""),
 ):
     """Save settings from the form."""
     # Import here to avoid circular imports
@@ -131,6 +135,9 @@ def save_settings(
     set_setting(XBOX_XSTS_TOKEN, xbox_xsts_token.strip())
     set_setting(XBOX_GAMEPASS_MARKET, xbox_gamepass_market.strip())
     set_setting(XBOX_GAMEPASS_PLAN, xbox_gamepass_plan.strip())
+    if psn_npsso.strip():
+        from ..sources.psn import save_npsso
+        save_npsso(psn_npsso)
     
     # Only save LOCAL_GAMES_PATHS if not in Docker mode
     if not is_docker:

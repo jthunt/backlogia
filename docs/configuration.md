@@ -21,10 +21,13 @@ Configure all store connections through the **Settings** page in Backlogia. Each
 | **Amazon** | OAuth flow in Settings page |
 | **EA** | Bearer token via bookmarklet (instructions in Settings) |
 | **Xbox / Game Pass** | XSTS token via bookmarklet or browser DevTools (instructions in Settings). Game Pass catalog syncs without authentication. |
+| **PlayStation Network** | Sign in to PlayStation, open [`https://ca.account.sony.com/api/v1/ssocookie`](https://ca.account.sony.com/api/v1/ssocookie) in the same browser session, and paste the returned `npsso` value. Credentials require `PSN_ENCRYPTION_KEY` or explicit `PSN_ALLOW_PLAINTEXT=true`. |
 | **Ubisoft** | Bookmarklet import from account.ubisoft.com (instructions in Settings) |
 | **Local Folder** | Configure paths in `.env` file (see [Local Games](#local-games) below) |
 
 ---
+PlayStation imports intentionally store owned PS4/PS5 identities first. To populate covers, descriptions, ratings, and other images, configure IGDB and run **Sync Missing Metadata** after the PlayStation sync.
+
 
 ## Local Games
 

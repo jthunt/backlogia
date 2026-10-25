@@ -1052,6 +1052,13 @@
                             <small>Import from Xbox/Game Pass</small>
                         </div>
                     </button>
+                    <button class="sync-btn" onclick="syncStore('psn')">
+                        <div class="icon" style="background: #003791;">P</div>
+                        <div class="text">
+                            <span>Sync PlayStation</span>
+                            <small>Import identities; run IGDB metadata afterward</small>
+                        </div>
+                    </button>
                     <button class="sync-btn" onclick="syncStore('local')">
                         <div class="icon"><img src="/static/images/local-96.png" alt="Local"></div>
                         <div class="text">
@@ -1570,6 +1577,50 @@
                                     <option value="essential" {% if settings.xbox_gamepass_plan == 'essential' %}selected{% endif %}>Game Pass Essential</option>
                                     <option value="pc" {% if settings.xbox_gamepass_plan == 'pc' %}selected{% endif %}>PC Game Pass</option>
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PlayStation -->
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                        <div class="section-icon" style="background: #003791;">P</div>
+                        <div class="header-text">
+                            <div class="section-title">PlayStation Network</div>
+                            <div class="section-description">Import owned PS4 and PS5 games</div>
+                        </div>
+                        <div class="collapsible-toggle">▼</div>
+                    </div>
+                    <div class="collapsible-content">
+                        <div class="collapsible-content-inner">
+                            <div class="form-group">
+                                <label for="psn_npsso">NPSSO value</label>
+                                <input type="password" id="psn_npsso" name="psn_npsso"
+                                       placeholder="Paste raw NPSSO or ssocookie JSON">
+                                <div class="instructions-box" style="margin-top: 10px;">
+                                    <ol>
+                                        <li>Sign in to PlayStation in your browser.</li>
+                                        <li>Open <a href="https://ca.account.sony.com/api/v1/ssocookie" target="_blank" rel="noopener noreferrer"><code>ca.account.sony.com/api/v1/ssocookie</code></a> in the same signed-in browser session.</li>
+                                        <li>Copy the <code>npsso</code> value from the JSON response, or copy the complete <code>{"npsso":"..."}</code> JSON.</li>
+                                        <li>Paste it here and save settings.</li>
+                                    </ol>
+                                    <p style="margin-top: 10px; color: #f0ad4e; font-size: 0.8rem;">
+                                        Sony does not provide a documented public library API. NPSSO is a high-privilege session credential; never share it.
+                                    </p>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:8px; margin-top:10px;">
+                                <button type="button" class="btn btn-primary" onclick="authenticatePsn()">Connect PlayStation</button>
+                                <button type="button" class="btn btn-secondary" onclick="disconnectPsn()">Disconnect</button>
+                            </div>
+                            <div class="help-text">
+                                Set <code>PSN_ENCRYPTION_KEY</code> in <code>.env</code>. For explicit local-only plaintext fallback, also set <code>PSN_ALLOW_PLAINTEXT=true</code>.
+                            </div>
+                            <div class="form-group">
+                                <label>Browser fallback</label>
+                                <a id="psn-bookmarklet" class="btn btn-secondary" href="#" onclick="bookmarkletClickHandler(event)">Install PlayStation import bookmarklet</a>
+                                <div class="help-text">Run it while signed in on PlayStation. It sends owned PS4/PS5 identities to this Backlogia instance.</div>
                             </div>
                         </div>
                     </div>
@@ -2219,6 +2270,34 @@ LOCAL_GAMES_DIR_2=/another/path/to/games</pre>
             event.preventDefault();
             alert("Don't click here. Drag this to your bookmarks bar and run it from there.");
         }
+        function generatePsnBookmarklet(localUrl) {
+            const target = JSON.stringify(localUrl);
+            return `javascript:(async()=>{try{let games=[];let start=0;while(true){const q=JSON.stringify({isActive:true,platform:["ps4","ps5"],start,size:100,sortBy:"ACTIVE_DATE",sortDirection:"desc"});const e=JSON.stringify({persistedQuery:{version:1,sha256Hash:"827a423f6a8ddca4107ac01395af2ec0eafd8396fc7fa204aaf9b7ed2eefa168"}});const u="https://web.np.playstation.com/api/graphql/v1/op?operationName=getPurchasedGameList&variables="+encodeURIComponent(q)+"&extensions="+encodeURIComponent(e);const r=await fetch(u,{credentials:"include",headers:{"x-apollo-operation-name":"pn_psn"}});const j=await r.json();const d=j&&j.data&&j.data.purchasedTitlesRetrieve;const page=(d&&d.games)||[];games.push(...page);if(!page.length||(d.pageInfo&&d.pageInfo.isLast))break;start+=page.length;}const owned=games.filter(x=>x.titleId&&x.name&&["ps4","ps5"].includes(String(x.platform).toLowerCase())).map(x=>({store_id:x.titleId,name:x.name,platform:String(x.platform).toLowerCase(),membership:x.membership||x.subscriptionService,entitlement_type:(x.membership||x.subscriptionService)?"subscription":"purchased"}));const p=await fetch(${target}+"/api/import/psn",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({games:owned})});const z=await p.json();alert(z.message||"PlayStation import complete");}catch(e){alert("PlayStation import failed: "+e.message)}})();`;
+        }
+        function authenticatePsn() {
+            const npsso = document.getElementById('psn_npsso').value.trim();
+            if (!npsso) {
+                showStatus('Paste an NPSSO value first.', 'error');
+                return;
+            }
+            showStatus('Authenticating with PlayStation...', 'loading');
+            fetch('/api/psn/auth', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({npsso})
+            }).then(response => response.json()).then(data => {
+                showStatus(data.message || data.detail || 'PlayStation authentication failed', data.success ? 'success' : 'error');
+            }).catch(error => showStatus('Network error: ' + error.message, 'error'));
+        }
+
+        function disconnectPsn() {
+            fetch('/api/psn/auth', {method: 'DELETE'})
+                .then(response => response.json())
+                .then(data => showStatus(data.message || 'PlayStation disconnected', data.success ? 'success' : 'error'))
+                .catch(error => showStatus('Network error: ' + error.message, 'error'));
+        }
+
+
 
         // Generate the bookmarklet code
         // Steam and EA code runs inline (CSP blocks external scripts on those sites)
@@ -2235,6 +2314,10 @@ LOCAL_GAMES_DIR_2=/another/path/to/games</pre>
 
             const code = generateBookmarkletCode(localUrl);
             bookmarkletLink.href = code;
+            const psnBookmarklet = document.getElementById('psn-bookmarklet');
+            if (psnBookmarklet) {
+                psnBookmarklet.href = generatePsnBookmarklet(localUrl);
+            }
         });
     </script>
     {% include '_footer.html' %}

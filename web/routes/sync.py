@@ -30,6 +30,7 @@ class StoreType(str, Enum):
     ea = "ea"
     xbox = "xbox"
     ubisoft = "ubisoft"
+    psn = "psn"
     local = "local"
     all = "all"
 
@@ -42,7 +43,7 @@ def sync_store(store: StoreType):
         create_database, import_steam_games, import_epic_games,
         import_gog_games, import_itch_games, import_humble_games,
         import_battlenet_games, import_amazon_games, import_ea_games,
-        import_xbox_games, import_local_games
+        import_xbox_games, import_local_games, import_psn_games
     )
 
     try:
@@ -80,6 +81,8 @@ def sync_store(store: StoreType):
         if store == StoreType.xbox or store == StoreType.all:
             results["xbox"] = import_xbox_games(conn)
 
+        if store == StoreType.psn or store == StoreType.all:
+            results["psn"] = import_psn_games(conn)
         if store == StoreType.local or store == StoreType.all:
             results["local"] = import_local_games(conn)
 
@@ -171,7 +174,7 @@ def sync_store_async(store: StoreType):
         create_database, import_steam_games, import_epic_games,
         import_gog_games, import_itch_games, import_humble_games,
         import_battlenet_games, import_amazon_games, import_ea_games,
-        import_xbox_games, import_local_games
+        import_xbox_games, import_local_games, import_psn_games
     )
 
     store_name = "all stores" if store == StoreType.all else store.value.capitalize()
@@ -195,6 +198,7 @@ def sync_store_async(store: StoreType):
                     ("amazon", import_amazon_games),
                     ("ea", import_ea_games),
                     ("xbox", import_xbox_games),
+                    ("psn", import_psn_games),
                     ("local", import_local_games),
                 ]
             else:
@@ -208,6 +212,7 @@ def sync_store_async(store: StoreType):
                     StoreType.amazon: ("amazon", import_amazon_games),
                     StoreType.ea: ("ea", import_ea_games),
                     StoreType.xbox: ("xbox", import_xbox_games),
+                    StoreType.psn: ("psn", import_psn_games),
                     StoreType.local: ("local", import_local_games),
                 }
                 if store in store_map:
@@ -397,6 +402,97 @@ def sync_protondb_async(mode: str):
     run_job_async(job_id, run_sync)
 
     return {"success": True, "job_id": job_id, "message": f"Started ProtonDB sync job ({mode_text})"}
+
+
+class PsnGame(BaseModel):
+    store_id: str
+    name: str
+    platform: str
+    membership: Optional[str] = None
+    entitlement_type: Optional[str] = None
+
+
+class PsnImportRequest(BaseModel):
+    games: List[PsnGame]
+
+
+@router.post("/api/import/psn")
+def import_psn_games_from_browser(request: PsnImportRequest):
+    """Import owned PS4/PS5 records normalized by the browser fallback."""
+    from ..services.database_builder import create_database, import_psn_games
+    from ..sources.psn import normalize_browser_games
+
+    try:
+        create_database()
+        conn = sqlite3.connect(DATABASE_PATH)
+        games = normalize_browser_games([game.dict() for game in request.games])
+        count = import_psn_games(conn, games)
+        conn.close()
+        return {"success": True, "message": f"Imported {count} PlayStation games", "count": count}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+class PsnAuthRequest(BaseModel):
+    npsso: str
+
+
+@router.post("/api/psn/auth")
+def authenticate_psn(request: PsnAuthRequest):
+    """Validate and store an NPSSO value by completing Sony authentication."""
+    from ..sources.psn import save_npsso, _request_session, _get_access_token
+
+    try:
+        save_npsso(request.npsso)
+        _get_access_token(_request_session())
+        return {"success": True, "message": "PlayStation authenticated"}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+class PsnCallbackRequest(BaseModel):
+    redirect_url: str
+
+
+@router.post("/api/psn/auth/callback")
+def complete_psn_callback(request: PsnCallbackRequest):
+    """Complete a pasted Sony custom-scheme redirect."""
+    from urllib.parse import parse_qs, urlparse
+    from ..sources.psn import _request_session, _token_request, _save_tokens, REDIRECT_URI
+
+    code = parse_qs(urlparse(request.redirect_url.strip()).query).get("code", [""])[0]
+    if not code:
+        raise HTTPException(status_code=400, detail="Redirect URL did not contain an authorization code")
+    try:
+        payload = _token_request(_request_session(), {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+            "token_format": "jwt",
+        })
+        _save_tokens({
+            "access_token": payload["access_token"],
+            "refresh_token": payload.get("refresh_token"),
+            "refresh_token_expires_at": datetime.now().timestamp() + float(payload.get("refresh_token_expires_in", 0)),
+        })
+        return {"success": True, "message": "PlayStation callback completed"}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+
+@router.get("/api/psn/status")
+def psn_status():
+    from ..services.settings import get_setting
+    from ..sources.psn import PSN_NPSSO
+
+    return {"authenticated": bool(get_setting(PSN_NPSSO, ""))}
+
+
+@router.delete("/api/psn/auth")
+def disconnect_psn():
+    from ..sources.psn import disconnect
+
+    disconnect()
+    return {"success": True, "message": "PlayStation disconnected"}
 
 
 class UbisoftGame(BaseModel):

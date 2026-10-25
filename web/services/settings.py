@@ -22,6 +22,8 @@ XBOX_XSTS_TOKEN = "xbox_xsts_token"
 XBOX_GAMEPASS_MARKET = "xbox_gamepass_market"
 XBOX_GAMEPASS_PLAN = "xbox_gamepass_plan"
 LOCAL_GAMES_PATHS = "local_games_paths"
+PSN_NPSSO = "psn_npsso"
+PSN_TOKENS = "psn_tokens"
 IGDB_MATCH_THRESHOLD = "igdb_match_threshold"
 
 # Map setting keys to environment variable names
@@ -39,6 +41,7 @@ ENV_VAR_MAP = {
     XBOX_GAMEPASS_MARKET: "XBOX_GAMEPASS_MARKET",
     XBOX_GAMEPASS_PLAN: "XBOX_GAMEPASS_PLAN",
     LOCAL_GAMES_PATHS: "LOCAL_GAMES_PATHS",
+    PSN_NPSSO: "PSN_NPSSO",
     IGDB_MATCH_THRESHOLD: "IGDB_MATCH_THRESHOLD",
 }
 

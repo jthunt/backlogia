@@ -72,8 +72,9 @@ def collections_page(request: Request, conn: sqlite3.Connection = Depends(get_db
         collections_with_covers.append(collection_dict)
 
     return templates.TemplateResponse(
-        "collections.html",
-        {
+        request=request,
+        name="collections.html",
+        context={
             "request": request,
             "collections": collections_with_covers
         }
@@ -106,8 +107,9 @@ def collection_detail(request: Request, collection_id: int, conn: sqlite3.Connec
     grouped_games = group_games_by_igdb(games)
 
     return templates.TemplateResponse(
-        "collection_detail.html",
-        {
+        request=request,
+        name="collection_detail.html",
+        context={
             "request": request,
             "collection": dict(collection),
             "games": grouped_games,

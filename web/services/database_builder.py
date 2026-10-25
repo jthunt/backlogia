@@ -136,6 +136,69 @@ def mark_removed_games(conn, store_name, seen_store_ids):
     conn.commit()
     return (newly_removed, restored)
 
+def import_psn_games(conn, games=None):
+    """Import owned PS4/PS5 PlayStation titles.
+
+    Purchased entitlements persist when omitted by Sony. Subscription entries
+    are the only PSN records eligible for removal.
+    """
+    if games is None:
+        from ..sources.psn import get_psn_library
+        games = get_psn_library()
+
+    cursor = conn.cursor()
+    subscription_ids = set()
+    count = 0
+    for game in games:
+        store_id = str(game.get("store_id") or "").strip()
+        name = str(game.get("name") or "").strip()
+        platform = str(game.get("platform") or "").lower()
+        if not store_id or not name or platform not in {"ps4", "ps5"}:
+            continue
+        entitlement_type = game.get("entitlement_type") or "unknown"
+        if entitlement_type == "subscription":
+            subscription_ids.add(store_id)
+        extra_data = json.dumps({
+            "platform": platform,
+            "membership": game.get("membership"),
+            "entitlement_type": entitlement_type,
+        })
+        cursor.execute(
+            """
+            INSERT INTO games (name, store, store_id, supported_platforms, extra_data, removed, updated_at)
+            VALUES (?, 'psn', ?, ?, ?, 0, ?)
+            ON CONFLICT(store, store_id) DO UPDATE SET
+                name = excluded.name,
+                supported_platforms = excluded.supported_platforms,
+                extra_data = excluded.extra_data,
+                removed = 0,
+                updated_at = excluded.updated_at
+            """,
+            (name, store_id, json.dumps([platform]), extra_data, datetime.now().isoformat()),
+        )
+        count += 1
+
+    if subscription_ids:
+        placeholders = ",".join("?" * len(subscription_ids))
+        cursor.execute(
+            f"""
+            UPDATE games SET removed = 1
+            WHERE store = 'psn' AND store_id NOT IN ({placeholders})
+              AND json_extract(extra_data, '$.entitlement_type') = 'subscription'
+            """,
+            list(subscription_ids),
+        )
+    else:
+        cursor.execute(
+            """
+            UPDATE games SET removed = 1
+            WHERE store = 'psn'
+              AND json_extract(extra_data, '$.entitlement_type') = 'subscription'
+            """
+        )
+    conn.commit()
+    return count
+
 
 def import_steam_games(conn):
     """Import games from Steam."""

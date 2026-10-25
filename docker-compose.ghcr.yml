@@ -52,6 +52,10 @@ services:
       - LOCAL_GAMES_DIR_3=${LOCAL_GAMES_DIR_3:-}
       - LOCAL_GAMES_DIR_4=${LOCAL_GAMES_DIR_4:-}
       - LOCAL_GAMES_DIR_5=${LOCAL_GAMES_DIR_5:-}
+      # PlayStation Network credential protection
+      - PSN_ENCRYPTION_KEY=${PSN_ENCRYPTION_KEY:-}
+      - PSN_ALLOW_PLAINTEXT=${PSN_ALLOW_PLAINTEXT:-false}
+      - PSN_NPSSO=${PSN_NPSSO:-}
     restart: unless-stopped
 
   caddy:

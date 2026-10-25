@@ -45,6 +45,10 @@ services:
       - ENABLE_AUTH=${ENABLE_AUTH:-false}
       - SECRET_KEY=${SECRET_KEY:-}
       - SESSION_EXPIRY_DAYS=${SESSION_EXPIRY_DAYS:-30}
+      # PlayStation Network credential protection
+      - PSN_ENCRYPTION_KEY=${PSN_ENCRYPTION_KEY:-}
+      - PSN_ALLOW_PLAINTEXT=${PSN_ALLOW_PLAINTEXT:-false}
+      - PSN_NPSSO=${PSN_NPSSO:-}
       # Amazon Games - uses Nile
     restart: unless-stopped
 

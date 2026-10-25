@@ -32,7 +32,7 @@ Stop jumping between Steam, Epic, GOG, Xbox, Amazon, and a dozen other launchers
 </p>
 
 <p align="center">
-  <strong>Steam</strong> &nbsp;•&nbsp; <strong>Epic Games</strong> &nbsp;•&nbsp; <strong>GOG</strong> &nbsp;•&nbsp; <strong>Amazon Games</strong> &nbsp;•&nbsp; <strong>itch.io</strong> &nbsp;•&nbsp; <strong>Humble Bundle</strong> &nbsp;•&nbsp; <strong>Battle.net</strong> &nbsp;•&nbsp; <strong>EA</strong> &nbsp;•&nbsp; <strong>Xbox / Game Pass</strong> &nbsp;•&nbsp; <strong>Ubisoft</strong> &nbsp;•&nbsp; <strong>Local Folder</strong>
+  <strong>Steam</strong> &nbsp;•&nbsp; <strong>Epic Games</strong> &nbsp;•&nbsp; <strong>GOG</strong> &nbsp;•&nbsp; <strong>Amazon Games</strong> &nbsp;•&nbsp; <strong>itch.io</strong> &nbsp;•&nbsp; <strong>Humble Bundle</strong> &nbsp;•&nbsp; <strong>Battle.net</strong> &nbsp;•&nbsp; <strong>EA</strong> &nbsp;•&nbsp; <strong>Xbox / Game Pass</strong> &nbsp;•&nbsp; <strong>PlayStation Network</strong> &nbsp;•&nbsp; <strong>Ubisoft</strong> &nbsp;•&nbsp; <strong>Local Folder</strong>
 </p>
 
 ---
@@ -117,7 +117,26 @@ Connect your accounts and sync your library with a single click.
 
 For other installation methods, see the [Installation Guide](docs/installation.md).
 
+## Test from a local checkout
+
+Run the setup script from the repository checkout that contains the files you want to test:
+
+```bash
+./scripts/setup-local.sh
+```
+
+The script resolves its own repository root, so it can be run from any working directory. It creates the ignored runtime directories (`data/`, `data/legendary/`, `data/nile/`, and `.empty/`), creates `.env` if needed, generates `PSN_ENCRYPTION_KEY`, validates Docker Compose, and starts the local build.
+
+To validate configuration without starting the container:
+
+```bash
+./scripts/setup-local.sh --no-start
+```
+
+The compose file mounts `./data` from this checkout. Symlinking application directories is not required; use the checkout containing the source files and keep the persistent database under its `data/` directory.
+
 ---
+
 
 ## Documentation
 

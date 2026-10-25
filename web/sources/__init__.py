@@ -8,3 +8,4 @@ from .itch import get_auth_token, get_owned_games
 from .humble import get_humble_library
 from .battlenet import get_battlenet_library
 from .amazon import get_amazon_library, is_nile_installed, check_auth_status, start_auth, complete_auth, logout
+from .psn import get_psn_library

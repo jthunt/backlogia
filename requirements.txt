@@ -22,3 +22,4 @@ beautifulsoup4
 # Authentication (optional)
 bcrypt
 itsdangerous
+cryptography

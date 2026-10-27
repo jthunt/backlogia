@@ -55,8 +55,6 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://account.ubisoft.com",
-        "https://www.ubisoft.com",
         "https://www.gog.com",
         "http://localhost:5050",
         "http://127.0.0.1:5050",

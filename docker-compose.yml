@@ -8,8 +8,8 @@ services:
       - backlogia-net
     volumes:
       - ./data:/data
-      - ./data/legendary:/root/.config/legendary
       - ./data/nile:/root/.config/nile
+      - ${UBISOFT_CACHE_DIR:-./.empty}:/ubisoft-cache:ro
       - ${GOG_DB_DIR:-./.empty}:/gog:ro
       # Local game folders (up to 5 by default, add more if needed)
       - ${LOCAL_GAMES_DIR_1:-./.empty}:/local-games-1:ro
@@ -33,6 +33,8 @@ services:
       - HUMBLE_SESSION_COOKIE=${HUMBLE_SESSION_COOKIE:-}
       # GOG configuration - automatically uses mounted path
       - GOG_DB_PATH=/gog/galaxy-2.0.db
+      # Ubisoft Connect cache - Playnite-compatible local library source
+      - UBISOFT_CONFIGURATIONS_PATH=/ubisoft-cache/configuration/configurations
       # Battle.net configuration
       - BATTLENET_SESSION_COOKIE=${BATTLENET_SESSION_COOKIE:-}
       # Local games - host paths for display, container paths for scanning

@@ -858,6 +858,73 @@ def import_xbox_games(conn):
         return 0
 
 
+def import_ubisoft_games(conn):
+    """Import games from Ubisoft Connect's Playnite-compatible local cache."""
+    print("Importing Ubisoft Connect library...")
+    cursor = conn.cursor()
+
+    try:
+        from ..sources.ubisoft import get_ubisoft_library
+
+        games = get_ubisoft_library()
+        if not games:
+            print("  No Ubisoft Connect games found or cache is not configured")
+            return 0
+
+        count = 0
+        seen_store_ids = set()
+        for game in games:
+            try:
+                store_id = str(game.get("store_id") or "").strip()
+                name = str(game.get("name") or "").strip()
+                if not store_id or not name:
+                    continue
+
+                cursor.execute("""
+                    INSERT INTO games (
+                        name, store, store_id, cover_image, background_image, icon,
+                        supported_platforms, extra_data, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(store, store_id) DO UPDATE SET
+                        name = excluded.name,
+                        cover_image = excluded.cover_image,
+                        background_image = excluded.background_image,
+                        icon = excluded.icon,
+                        supported_platforms = excluded.supported_platforms,
+                        extra_data = excluded.extra_data,
+                        updated_at = excluded.updated_at
+                """, (
+                    name,
+                    "ubisoft",
+                    store_id,
+                    game.get("cover_image"),
+                    game.get("background_image"),
+                    game.get("icon"),
+                    json.dumps(game.get("supported_platforms", [])),
+                    json.dumps(game),
+                    datetime.now().isoformat(),
+                ))
+                seen_store_ids.add(store_id)
+                count += 1
+            except Exception as e:
+                print(f"  Error importing {game.get('name')}: {e}")
+
+        conn.commit()
+        removed, restored = mark_removed_games(conn, "ubisoft", seen_store_ids)
+        if removed:
+            print(f"  Marked {removed} Ubisoft games as removed")
+        if restored:
+            print(f"  Restored {restored} previously removed Ubisoft games")
+        print(f"  Imported {count} Ubisoft games")
+        return count
+    except ImportError:
+        print("  Ubisoft module not available")
+        return 0
+    except Exception as e:
+        print(f"  Ubisoft import error: {e}")
+        return 0
+
+
 def import_local_games(conn):
     """Import games from local folders."""
     print("Importing local games...")

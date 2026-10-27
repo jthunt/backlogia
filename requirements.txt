@@ -12,6 +12,7 @@ fastapi
 uvicorn[standard]
 python-multipart
 jinja2
+PyYAML
 
 # IGDB integration
 python-dotenv

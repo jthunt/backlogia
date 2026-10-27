@@ -22,10 +22,37 @@ Configure all store connections through the **Settings** page in Backlogia. Each
 | **EA** | Bearer token via bookmarklet (instructions in Settings) |
 | **Xbox / Game Pass** | XSTS token via bookmarklet or browser DevTools (instructions in Settings). Game Pass catalog syncs without authentication. |
 | **PlayStation Network** | Sign in to PlayStation, open [`https://ca.account.sony.com/api/v1/ssocookie`](https://ca.account.sony.com/api/v1/ssocookie) in the same browser session, and paste the returned `npsso` value. Credentials require `PSN_ENCRYPTION_KEY` or explicit `PSN_ALLOW_PLAINTEXT=true`. |
-| **Ubisoft** | Bookmarklet import from account.ubisoft.com (instructions in Settings) |
+| **Ubisoft** | Reads the local Ubisoft Connect cache used by Playnite; Docker users configure `UBISOFT_CACHE_DIR` below |
 | **Local Folder** | Configure paths in `.env` file (see [Local Games](#local-games) below) |
-
+ 
 ---
+ 
+## Ubisoft Connect
+ 
+Backlogia reads the same cache that Playnite's Ubisoft Connect library plugin reads. It does not scrape the Ubisoft account website.
+ 
+### Docker
+ 
+1. Open Ubisoft Connect and sign in at least once.
+2. Set the host cache directory in `.env`:
+   ```bash
+   UBISOFT_CACHE_DIR="/path/to/Ubisoft Game Launcher"
+   ```
+   On Windows, use the directory containing `cache`, for example:
+   `C:/Users/<user>/AppData/Local/Ubisoft Game Launcher`.
+3. Restart the container and click **Sync Ubisoft** in Settings:
+   ```bash
+   docker compose down && docker compose up -d
+   ```
+ 
+The imported cache file is `cache/configuration/configurations`. The mount is read-only.
+ 
+### Native install
+ 
+Set `UBISOFT_CONFIGURATIONS_PATH` directly to the `configurations` file if Ubisoft Connect is installed outside the default Windows location.
+ 
+---
+
 PlayStation imports intentionally store owned PS4/PS5 identities first. To populate covers, descriptions, ratings, and other images, configure IGDB and run **Sync Missing Metadata** after the PlayStation sync.
 
 

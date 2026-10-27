@@ -2,7 +2,6 @@
 # Store sync and IGDB sync routes
 
 import json
-import re
 import sqlite3
 from datetime import datetime
 from enum import Enum
@@ -43,7 +42,7 @@ def sync_store(store: StoreType):
         create_database, import_steam_games, import_epic_games,
         import_gog_games, import_itch_games, import_humble_games,
         import_battlenet_games, import_amazon_games, import_ea_games,
-        import_xbox_games, import_local_games, import_psn_games
+        import_xbox_games, import_ubisoft_games, import_local_games, import_psn_games
     )
 
     try:
@@ -83,6 +82,8 @@ def sync_store(store: StoreType):
 
         if store == StoreType.psn or store == StoreType.all:
             results["psn"] = import_psn_games(conn)
+        if store == StoreType.ubisoft or store == StoreType.all:
+            results["ubisoft"] = import_ubisoft_games(conn)
         if store == StoreType.local or store == StoreType.all:
             results["local"] = import_local_games(conn)
 
@@ -174,7 +175,7 @@ def sync_store_async(store: StoreType):
         create_database, import_steam_games, import_epic_games,
         import_gog_games, import_itch_games, import_humble_games,
         import_battlenet_games, import_amazon_games, import_ea_games,
-        import_xbox_games, import_local_games, import_psn_games
+        import_xbox_games, import_ubisoft_games, import_local_games, import_psn_games
     )
 
     store_name = "all stores" if store == StoreType.all else store.value.capitalize()
@@ -199,6 +200,7 @@ def sync_store_async(store: StoreType):
                     ("ea", import_ea_games),
                     ("xbox", import_xbox_games),
                     ("psn", import_psn_games),
+                    ("ubisoft", import_ubisoft_games),
                     ("local", import_local_games),
                 ]
             else:
@@ -213,6 +215,7 @@ def sync_store_async(store: StoreType):
                     StoreType.ea: ("ea", import_ea_games),
                     StoreType.xbox: ("xbox", import_xbox_games),
                     StoreType.psn: ("psn", import_psn_games),
+                    StoreType.ubisoft: ("ubisoft", import_ubisoft_games),
                     StoreType.local: ("local", import_local_games),
                 }
                 if store in store_map:
@@ -495,15 +498,6 @@ def disconnect_psn():
     return {"success": True, "message": "PlayStation disconnected"}
 
 
-class UbisoftGame(BaseModel):
-    title: str
-    playtime: Optional[str] = None
-    lastPlayed: Optional[str] = None
-    platform: Optional[str] = None
-
-
-class UbisoftImportRequest(BaseModel):
-    games: List[UbisoftGame]
 
 
 class GOGGame(BaseModel):
@@ -517,71 +511,6 @@ class GOGImportRequest(BaseModel):
     games: List[GOGGame]
 
 
-@router.post("/api/import/ubisoft")
-def import_ubisoft_games(request: UbisoftImportRequest):
-    """Import games scraped from Ubisoft account page."""
-    from ..services.database_builder import create_database
-
-    try:
-        # Ensure database exists
-        create_database()
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-
-        count = 0
-        for game in request.games:
-            try:
-                # Parse playtime string (e.g. "10 hours", "2 hours 30 minutes")
-                playtime_hours = None
-                if game.playtime:
-                    hours_match = re.search(r'(\d+)\s*hour', game.playtime)
-                    mins_match = re.search(r'(\d+)\s*min', game.playtime)
-                    hours = int(hours_match.group(1)) if hours_match else 0
-                    mins = int(mins_match.group(1)) if mins_match else 0
-                    playtime_hours = hours + (mins / 60) if (hours or mins) else None
-
-                # Create a stable store_id from title
-                store_id = game.title.lower().replace(' ', '-').replace(':', '').replace("'", "")
-
-                # Store extra data
-                extra_data = {
-                    "playtime_raw": game.playtime,
-                    "last_played": game.lastPlayed,
-                    "platform": game.platform
-                }
-
-                cursor.execute("""
-                    INSERT INTO games (
-                        name, store, store_id, playtime_hours, extra_data, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(store, store_id) DO UPDATE SET
-                        name = excluded.name,
-                        playtime_hours = excluded.playtime_hours,
-                        extra_data = excluded.extra_data,
-                        updated_at = excluded.updated_at
-                """, (
-                    game.title,
-                    "ubisoft",
-                    store_id,
-                    playtime_hours,
-                    json.dumps(extra_data),
-                    datetime.now().isoformat()
-                ))
-                count += 1
-            except Exception as e:
-                print(f"  Error importing {game.title}: {e}")
-
-        conn.commit()
-        conn.close()
-
-        return {
-            "success": True,
-            "message": f"Imported {count} Ubisoft games",
-            "count": count
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/api/import/gog")

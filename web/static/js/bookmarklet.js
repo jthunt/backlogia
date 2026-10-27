@@ -119,79 +119,6 @@
         })();
     }
 
-    // Ubisoft game scraper
-    else if (host.includes('account.ubisoft.com')) {
-        (async function() {
-            var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
-
-            var content = createOverlay('#667eea', 'Ubisoft Import');
-            content.textContent = 'Expanding all sections...';
-
-            // Click all "More" accordion buttons to expand game list
-            var expandCount = 0;
-            while (true) {
-                var moreBtn = Array.from(document.querySelectorAll('div[class*="Accordion-toggleShow"]'))
-                    .find(function(el) { return /more/i.test(el.innerText.trim()); });
-
-                if (!moreBtn) break;
-                moreBtn.click();
-                expandCount++;
-                content.textContent = 'Expanding sections... (' + expandCount + ')';
-                await sleep(1200);
-            }
-
-            content.textContent = 'Parsing games...';
-
-            // Parse games from page text
-            var lines = document.body.innerText.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
-            var rawGames = [];
-
-            for (var i = 0; i < lines.length; i++) {
-                if (lines[i].startsWith('Played for')) {
-                    rawGames.push({
-                        title: lines[i - 1] || null,
-                        playtime: lines[i].replace('Played for ', ''),
-                        lastPlayed: lines[i + 1] ? lines[i + 1].replace('Last played ', '') : null,
-                        platform: lines[i + 2] || null
-                    });
-                }
-            }
-
-            // Deduplicate by creating a unique key
-            var uniqueMap = new Map();
-            rawGames.forEach(function(g) {
-                var key = g.title + '|' + g.playtime + '|' + g.lastPlayed + '|' + g.platform;
-                if (!uniqueMap.has(key)) {
-                    uniqueMap.set(key, g);
-                }
-            });
-            var uniqueGames = Array.from(uniqueMap.values());
-
-            content.textContent = 'Found ' + uniqueGames.length + ' games. Sending to Backlogia...';
-
-            try {
-                var response = await fetch(LOCAL_URL + '/api/import/ubisoft', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ games: uniqueGames })
-                });
-                var data = await response.json();
-
-                if (data.success) {
-                    content.innerHTML = '<span style="color:#4caf50">' + data.message + '</span>' +
-                        '<div style="margin-top:10px;color:#888;font-size:12px">Games have been imported to your Backlogia library.</div>';
-                } else {
-                    content.innerHTML = '<span style="color:#f44336">Error: ' + (data.detail || 'Unknown error') + '</span>';
-                }
-            } catch (e) {
-                content.innerHTML = '<span style="color:#f44336">Failed to connect to Backlogia</span>' +
-                    '<div style="margin-top:10px;color:#888;font-size:12px">' +
-                    'Could not reach: ' + LOCAL_URL + '<br><br>' +
-                    'Make sure Backlogia is running on your computer.' +
-                    '</div>';
-            }
-        })();
-    }
 
     // Xbox token extraction (Note: xbox.com blocks external scripts, so this is handled inline in settings.html)
     // This code is here for reference and for xboxlive.com subdomains that might allow it
@@ -389,10 +316,6 @@
             '<a href="https://www.xbox.com/en-US/play" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(16,124,16,0.1);border-radius:8px;text-decoration:none;color:#fff;border:1px solid #107C10">' +
             '<span style="font-size:20px">🎮</span>' +
             '<div><strong style="color:#107C10">Xbox.com</strong><br><span style="font-size:12px;color:#888">Extract your Xbox auth token</span></div>' +
-            '</a>' +
-            '<a href="https://account.ubisoft.com/en-US/games-activity" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(0,112,255,0.1);border-radius:8px;text-decoration:none;color:#fff;border:1px solid #0070ff">' +
-            '<span style="font-size:20px">🕹️</span>' +
-            '<div><strong style="color:#0070ff">Ubisoft Games Activity</strong><br><span style="font-size:12px;color:#888">Import your Ubisoft library</span></div>' +
             '</a>' +
             '<a href="https://www.gog.com/feed" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(134,50,138,0.1);border-radius:8px;text-decoration:none;color:#fff;border:1px solid #86328a">' +
             '<span style="font-size:20px">🎁</span>' +

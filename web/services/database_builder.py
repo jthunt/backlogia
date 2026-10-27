@@ -642,7 +642,7 @@ def import_battlenet_games(conn):
 
 
 def import_ea_games(conn):
-    """Import games from EA (requires session cookies)."""
+    """Import games from EA using a bearer token."""
     print("Importing EA library...")
     cursor = conn.cursor()
 
@@ -651,8 +651,7 @@ def import_ea_games(conn):
 
         games = get_ea_library()
         if not games:
-            print("  No EA games found or not authenticated")
-            print("  Get a new EA bearer token using the script in Settings")
+            print("  EA library is empty or no bearer token is configured")
             return 0
 
         count = 0
